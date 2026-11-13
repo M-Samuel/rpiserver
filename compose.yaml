@@ -90,3 +90,30 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
+
+  qbittorrent:
+    # qBittorrent; Web UI LAN-only on 8080. Writes only to /mnt/ssd/downloads.
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]   # s6 init needs these to drop to PUID
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Etc/UTC
+      WEBUI_PORT: "8080"
+    volumes:
+      - ./qbittorrent/config:/config
+      - /mnt/ssd/downloads:/downloads
+    ports:
+      - "192.168.100.59:8080:8080/tcp"   # Web UI (LAN only)
+      - "6881:6881/tcp"                  # peer port
+      - "6881:6881/udp"
+    pids_limit: 300
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

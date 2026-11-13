@@ -1,2 +1,3 @@
 .env
 wireguard/config/
+qbittorrent/config/
