@@ -109,8 +109,6 @@ services:
       - /mnt/ssd/downloads:/downloads
     ports:
       - "192.168.100.59:8080:8080/tcp"   # Web UI (LAN only)
-      - "6881:6881/tcp"                  # peer port
-      - "6881:6881/udp"
     pids_limit: 300
     mem_limit: 512m
     cpus: 1.0
