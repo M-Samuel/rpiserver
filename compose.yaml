@@ -33,8 +33,12 @@ services:
       - ./wireguard/config:/etc/wireguard
     ports:
       - "51820:51820/udp"              # WireGuard (forward this on your router)
-      - "51821:51821/tcp"              # admin web UI
-    cap_add: [NET_ADMIN, SYS_MODULE]
+      - "127.0.0.1:51821:51821/tcp" # admin web UI (LAN only)
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_RAW]    # no SYS_MODULE: wireguard is in the host kernel
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 200
+    init: true
     mem_limit: 256m
     cpus: 0.5
     sysctls:
@@ -65,40 +69,20 @@ services:
       - /mnt/ssd/downloads:/storage:ro
       - ./samba/smb.conf:/etc/samba/smb.conf:ro   # tuned config (replaces generated one)
     ports:
-      - "445:445/tcp"
+      - "192.168.100.59:445:445/tcp"   # LAN only
     cpus: 0.25
     mem_limit: 256m
 
-  nfs:
-    # Read-only NFSv4 export of /mnt/ssd/downloads (LAN only, port 2049)
-    build: ./nfs
-    container_name: nfs
-    restart: unless-stopped
-    cap_drop: [ALL]
-    cap_add:                           # least privilege instead of privileged: true
-      - SYS_ADMIN                      # mount rpc_pipefs/nfsd, start kernel nfsd
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      PERMITTED: 192.168.100.0/24      # only the LAN may mount
-    volumes:
-      - /mnt/ssd/downloads:/export:ro
-    ports:
-      - "192.168.100.59:2049:2049/tcp"
-    mem_limit: 256m
-    cpus: 0.5
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "3" }
-
   qbittorrent:
-    # qBittorrent; Web UI LAN-only on 8080. Writes only to /mnt/ssd/downloads.
+    # qBittorrent; Web UI localhost-only on 8080. Writes only to /mnt/ssd/downloads.
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
     restart: unless-stopped
     cap_drop: [ALL]
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]   # s6 init needs these to drop to PUID
     security_opt: ["no-new-privileges:true"]
+    read_only: true                    # (no init: true — s6 must be PID 1)
+    tmpfs: ["/run:exec,mode=755", /tmp]
     environment:
       PUID: "1000"
       PGID: "1000"
@@ -108,10 +92,27 @@ services:
       - ./qbittorrent/config:/config
       - /mnt/ssd/downloads:/downloads
     ports:
-      - "192.168.100.59:8080:8080/tcp"   # Web UI (LAN only)
+      - "127.0.0.1:7502:8080/tcp"        # Web UI (localhost only)
     pids_limit: 300
     mem_limit: 512m
     cpus: 1.0
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
+
+  ddns:
+    # Updates the Cloudflare A record with this host's public IP every DDNS_INTERVAL seconds.
+    <<: *hardened
+    image: curlimages/curl:latest
+    container_name: ddns
+    entrypoint: ["/bin/sh", "/update.sh"]
+    environment:
+      CF_API_TOKEN: ${CF_API_TOKEN:?set CF_API_TOKEN in .env}
+      CF_ZONE_ID: ${CF_ZONE_ID:?set CF_ZONE_ID in .env}
+      CF_RECORD_ID: ${CF_RECORD_ID:?set CF_RECORD_ID in .env}
+      CF_RECORD_NAME: ${CF_RECORD_NAME:?set CF_RECORD_NAME in .env}
+      DDNS_INTERVAL: ${DDNS_INTERVAL:-300}
+    volumes:
+      - ./ddns/update.sh:/update.sh:ro
+    mem_limit: 64m
+    cpus: 0.1
