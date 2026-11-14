@@ -96,7 +96,7 @@ services:
     mem_limit: 512m
 
   qbittorrent:
-    # qBittorrent; Web UI localhost-only on 8080. Writes only to /mnt/ssd/downloads.
+    # qBittorrent; Web UI localhost-only on 8080. Writes only to /mnt/ssd/downloads and /mnt/ssd/.others.
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
     restart: unless-stopped
@@ -113,6 +113,7 @@ services:
     volumes:
       - ./qbittorrent/config:/config
       - /mnt/ssd/downloads:/downloads
+      - /mnt/ssd/.others:/others
     ports:
       - "127.0.0.1:7502:8080/tcp"        # Web UI (localhost only)
     pids_limit: 300
