@@ -71,7 +71,7 @@ services:
     ports:
       - "192.168.100.59:445:445/tcp"   # LAN only
     cpus: 0.25
-    mem_limit: 256m
+    mem_limit: 512m
 
   samba-others:
     # Read-only SMB share of /mnt/ssd/.others (same auth/creds as samba; port 4450 since 445 is taken)
@@ -93,7 +93,7 @@ services:
     ports:
       - "192.168.100.59:4450:445/tcp"  # LAN only
     cpus: 0.25
-    mem_limit: 256m
+    mem_limit: 512m
 
   qbittorrent:
     # qBittorrent; Web UI localhost-only on 8080. Writes only to /mnt/ssd/downloads.
